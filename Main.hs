@@ -54,6 +54,7 @@ sinkEvents :: STM.TVar Pandoc.Pandoc -> STM.TChan Pandoc.Pandoc -> Snap.Snap ()
 sinkEvents initialDocument chan = do
   chan' <- liftIO (STM.atomically (STM.dupTChan chan))
   initial <- liftIO (STM.atomically (STM.readTVar initialDocument))
+  Snap.setTimeout (maxBound `div` 2)
   Snap.modifyResponse $
     Snap.setContentType "text/event-stream" .
     Snap.setResponseBody (\(Snap.Continue f) ->
