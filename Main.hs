@@ -7,7 +7,8 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Monoid
 import System.IO (readFile)
 import System.Environment (getArgs)
-import Data.Enumerator.List (generateM)
+import Data.Enumerator ((>>==))
+import Data.Enumerator.List (repeatM)
 
 import qualified Blaze.ByteString.Builder as ByteBulider
 import qualified Control.Concurrent.Async as Async
@@ -28,32 +29,36 @@ import Paths_pandoc_live
 
 main :: IO ()
 main = do
-  events <- STM.newBroadcastTChanIO
   [ f ] <- getArgs
+
+  let pandocFile = Pandoc.readMarkdown Pandoc.def <$> readFile f
+
+  events <- STM.newBroadcastTChanIO
+  lastDocument <- STM.newTVarIO =<< pandocFile
 
   inotify <- INotify.init
   watch <- INotify.addWatch inotify f (INotify.in_MODIFY)
   watcher <- Async.async $ forever $ do
     e <- INotify.getEvent inotify
-    when (INotify.wd e == watch) $ do
-      doc <- Pandoc.readMarkdown Pandoc.def <$> readFile f
-      STM.atomically (STM.writeTChan events doc)
+    when (INotify.wd e == watch) $
+      pandocFile >>= STM.atomically . STM.writeTChan events
 
   Async.link watcher
 
   indexFile <- getDataFileName "index.html"
   Snap.quickHttpServe $
-    Snap.route [("/events", sinkEvents events),
+    Snap.route [("/events", sinkEvents lastDocument events),
                 ("/", Snap.serveFile indexFile)]
 
-sinkEvents :: STM.TChan Pandoc.Pandoc -> Snap.Snap ()
-sinkEvents chan = do
+sinkEvents :: STM.TVar Pandoc.Pandoc -> STM.TChan Pandoc.Pandoc -> Snap.Snap ()
+sinkEvents initialDocument chan = do
   chan' <- liftIO (STM.atomically (STM.dupTChan chan))
+  initial <- liftIO (STM.atomically (STM.readTVar initialDocument))
   Snap.modifyResponse $
     Snap.setContentType "text/event-stream" .
-    Snap.setResponseBody
-      (generateM (Just . docToBuilder <$>
-                  STM.atomically (STM.readTChan chan')))
+    Snap.setResponseBody (\(Snap.Continue f) ->
+      f (Snap.Chunks [docToBuilder initial]) >>==
+       repeatM (docToBuilder <$> STM.atomically (STM.readTChan chan')))
   where
   docToBuilder doc =
     ByteBulider.fromByteString
