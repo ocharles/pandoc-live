@@ -48,6 +48,7 @@ main = do
   indexFile <- getDataFileName "index.html"
   Snap.quickHttpServe $
     Snap.route [("/events", sinkEvents lastDocument events),
+                ("/bundle.js", Snap.serveFile "bundle.js"),
                 ("/", Snap.serveFile indexFile)]
 
 sinkEvents :: STM.TVar Pandoc.Pandoc -> STM.TChan Pandoc.Pandoc -> Snap.Snap ()
