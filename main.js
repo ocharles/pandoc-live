@@ -30,6 +30,7 @@ window.onload = function () {
             var newTree = virtualize(hidden.firstChild);
             var patches = diff(lastVnode, newTree);
             root = patch(root, patches);
+            document.getElementsByTagName('html')[0].scrollTop = root.scrollHeight;
             lastVnode = newTree;
         }]);
     }
