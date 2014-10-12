@@ -2,24 +2,41 @@
 var virtualize = require('vdom-virtualize');
 var diff = require('virtual-dom/diff');
 var patch =require('virtual-dom/patch');
-var h =require('virtual-dom/h');
+var h = require('virtual-dom/h');
+var createElement = require('virtual-dom/create-element');
 
 window.onload = function () {
     var evtSource = new EventSource("/events");
     var div = document.getElementById("content");
     var lastVnode = h('div');
+    var root = createElement(lastVnode);
+    div.appendChild(root);
+    var i = 0;
     evtSource.onmessage = function(e) {
+        i ++;
         var vnode = virtualize.fromHTML("<div>" + e.data.replace(/\\n/g, "\n") + "</div>");
-
-        var patches = diff(lastVnode, vnode);
-        patch(div, patches);
-
-        lastVnode = vnode;
-        //MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+        var domNode = createElement(vnode);
+        var hidden = createElement(
+            h('div', {
+                style: {
+                    visibility: "hidden",
+                    position: "absolute",
+                    top: "0"
+                }
+            })
+        );
+        document.body.appendChild(hidden);
+        hidden.appendChild(domNode);
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub, hidden, function() {
+            var newTree = virtualize(hidden.firstChild);
+            var patches = diff(lastVnode, newTree);
+            root = patch(root, patches);
+            lastVnode = newTree;
+        }]);
     }
 }
 
-},{"vdom-virtualize":3,"virtual-dom/diff":10,"virtual-dom/h":11,"virtual-dom/patch":36}],2:[function(require,module,exports){
+},{"vdom-virtualize":3,"virtual-dom/create-element":10,"virtual-dom/diff":11,"virtual-dom/h":12,"virtual-dom/patch":37}],2:[function(require,module,exports){
 
 },{}],3:[function(require,module,exports){
 /*!
@@ -99,8 +116,8 @@ function getElementProperties(el) {
     if("style" == propName) {
       var css = {}
         , styleProp
-      for(var i=0; i<el.style; i++) {
-        styleProp = el.style[i]
+      for(var i = 0; i < el.style.length; i++) {
+        styleProp = el.style[i];
         css[styleProp] = el.style.getPropertyValue(styleProp) // XXX: add support for "!important" via getPropertyPriority()!
       }
 
@@ -125,12 +142,12 @@ function getElementProperties(el) {
       obj[propName] = data
       return
     }
-    
+
     // Special case: attributes
-    // some properties are only accessible via .attributes, so 
+    // some properties are only accessible via .attributes, so
     // that's what we'd do, if vdom-create-element could handle this.
     if("attributes" == propName) return
-    
+
 
     // default: just copy the property
     obj[propName] = el[propName]
@@ -386,16 +403,21 @@ VirtualText.prototype.version = version
 VirtualText.prototype.type = "VirtualText"
 
 },{"./version":7}],10:[function(require,module,exports){
+var createElement = require("vdom/create-element")
+
+module.exports = createElement
+
+},{"vdom/create-element":18}],11:[function(require,module,exports){
 var diff = require("vtree/diff")
 
 module.exports = diff
 
-},{"vtree/diff":23}],11:[function(require,module,exports){
+},{"vtree/diff":24}],12:[function(require,module,exports){
 var h = require("./h/index.js")
 
 module.exports = h
 
-},{"./h/index.js":12}],12:[function(require,module,exports){
+},{"./h/index.js":13}],13:[function(require,module,exports){
 var isArray = require("x-is-array")
 var isString = require("x-is-string")
 
@@ -461,7 +483,7 @@ function isChildren(x) {
     return isArray(x) || isString(x) || isChild(x)
 }
 
-},{"./parse-tag":13,"vtree/is-vnode":27,"vtree/is-vtext":28,"vtree/is-widget":29,"vtree/vnode.js":31,"vtree/vtext.js":33,"x-is-array":34,"x-is-string":35}],13:[function(require,module,exports){
+},{"./parse-tag":14,"vtree/is-vnode":28,"vtree/is-vtext":29,"vtree/is-widget":30,"vtree/vnode.js":32,"vtree/vtext.js":34,"x-is-array":35,"x-is-string":36}],14:[function(require,module,exports){
 var split = require("browser-split")
 
 var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/
@@ -541,7 +563,7 @@ function parseTag(tag, props) {
     return parsedTags
 }
 
-},{"browser-split":14}],14:[function(require,module,exports){
+},{"browser-split":15}],15:[function(require,module,exports){
 /*!
  * Cross-Browser Split 1.1.1
  * Copyright 2007-2012 Steven Levithan <stevenlevithan.com>
@@ -649,14 +671,14 @@ module.exports = (function split(undef) {
   return self;
 })();
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 module.exports = isObject
 
 function isObject(x) {
     return typeof x === "object" && x !== null
 }
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 var isObject = require("is-object")
 var isHook = require("vtree/is-vhook")
 
@@ -750,7 +772,7 @@ function getPrototype(value) {
     }
 }
 
-},{"is-object":15,"vtree/is-vhook":26}],17:[function(require,module,exports){
+},{"is-object":16,"vtree/is-vhook":27}],18:[function(require,module,exports){
 var document = require("global/document")
 
 var applyProperties = require("./apply-properties")
@@ -798,7 +820,7 @@ function createElement(vnode, opts) {
     return node
 }
 
-},{"./apply-properties":16,"global/document":19,"vtree/handle-thunk":24,"vtree/is-vnode":27,"vtree/is-vtext":28,"vtree/is-widget":29}],18:[function(require,module,exports){
+},{"./apply-properties":17,"global/document":20,"vtree/handle-thunk":25,"vtree/is-vnode":28,"vtree/is-vtext":29,"vtree/is-widget":30}],19:[function(require,module,exports){
 // Maps a virtual DOM tree onto a real DOM tree in an efficient manner.
 // We don't want to read all of the DOM nodes in the tree so we use
 // the in-order tree indexing to eliminate recursion down certain branches.
@@ -885,7 +907,7 @@ function ascending(a, b) {
     return a > b ? 1 : -1
 }
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 (function (global){
 var topLevel = typeof global !== 'undefined' ? global :
     typeof window !== 'undefined' ? window : {}
@@ -904,7 +926,7 @@ if (typeof document !== 'undefined') {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"min-document":2}],20:[function(require,module,exports){
+},{"min-document":2}],21:[function(require,module,exports){
 var applyProperties = require("./apply-properties")
 
 var isWidget = require("vtree/is-widget")
@@ -1074,7 +1096,7 @@ function replaceRoot(oldRoot, newRoot) {
     return newRoot;
 }
 
-},{"./apply-properties":16,"./create-element":17,"./update-widget":22,"vtree/is-widget":29,"vtree/vpatch":32}],21:[function(require,module,exports){
+},{"./apply-properties":17,"./create-element":18,"./update-widget":23,"vtree/is-widget":30,"vtree/vpatch":33}],22:[function(require,module,exports){
 var document = require("global/document")
 var isArray = require("x-is-array")
 
@@ -1152,7 +1174,7 @@ function patchIndices(patches) {
     return indices
 }
 
-},{"./dom-index":18,"./patch-op":20,"global/document":19,"x-is-array":34}],22:[function(require,module,exports){
+},{"./dom-index":19,"./patch-op":21,"global/document":20,"x-is-array":35}],23:[function(require,module,exports){
 var isWidget = require("vtree/is-widget")
 
 module.exports = updateWidget
@@ -1169,7 +1191,7 @@ function updateWidget(a, b) {
     return false
 }
 
-},{"vtree/is-widget":29}],23:[function(require,module,exports){
+},{"vtree/is-widget":30}],24:[function(require,module,exports){
 var isArray = require("x-is-array")
 var isObject = require("is-object")
 
@@ -1515,7 +1537,7 @@ function appendPatch(apply, patch) {
     }
 }
 
-},{"./handle-thunk":24,"./is-thunk":25,"./is-vnode":27,"./is-vtext":28,"./is-widget":29,"./vpatch":32,"is-object":15,"x-is-array":34}],24:[function(require,module,exports){
+},{"./handle-thunk":25,"./is-thunk":26,"./is-vnode":28,"./is-vtext":29,"./is-widget":30,"./vpatch":33,"is-object":16,"x-is-array":35}],25:[function(require,module,exports){
 var isVNode = require("./is-vnode")
 var isVText = require("./is-vtext")
 var isWidget = require("./is-widget")
@@ -1557,18 +1579,18 @@ function renderThunk(thunk, previous) {
     return renderedThunk
 }
 
-},{"./is-thunk":25,"./is-vnode":27,"./is-vtext":28,"./is-widget":29}],25:[function(require,module,exports){
+},{"./is-thunk":26,"./is-vnode":28,"./is-vtext":29,"./is-widget":30}],26:[function(require,module,exports){
 module.exports = isThunk
 
 function isThunk(t) {
     return t && t.type === "Thunk"
 }
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports=require(4)
-},{"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/is-vhook.js":4}],27:[function(require,module,exports){
+},{"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/is-vhook.js":4}],28:[function(require,module,exports){
 module.exports=require(5)
-},{"./version":30,"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/is-vnode.js":5}],28:[function(require,module,exports){
+},{"./version":31,"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/is-vnode.js":5}],29:[function(require,module,exports){
 var version = require("./version")
 
 module.exports = isVirtualText
@@ -1577,13 +1599,13 @@ function isVirtualText(x) {
     return x && x.type === "VirtualText" && x.version === version
 }
 
-},{"./version":30}],29:[function(require,module,exports){
+},{"./version":31}],30:[function(require,module,exports){
 module.exports=require(6)
-},{"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/is-widget.js":6}],30:[function(require,module,exports){
+},{"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/is-widget.js":6}],31:[function(require,module,exports){
 module.exports=require(7)
-},{"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/version.js":7}],31:[function(require,module,exports){
+},{"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/version.js":7}],32:[function(require,module,exports){
 module.exports=require(8)
-},{"./is-vhook":26,"./is-vnode":27,"./is-widget":29,"./version":30,"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/vnode.js":8}],32:[function(require,module,exports){
+},{"./is-vhook":27,"./is-vnode":28,"./is-widget":30,"./version":31,"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/vnode.js":8}],33:[function(require,module,exports){
 var version = require("./version")
 
 VirtualPatch.NONE = 0
@@ -1607,9 +1629,9 @@ function VirtualPatch(type, vNode, patch) {
 VirtualPatch.prototype.version = version
 VirtualPatch.prototype.type = "VirtualPatch"
 
-},{"./version":30}],33:[function(require,module,exports){
+},{"./version":31}],34:[function(require,module,exports){
 module.exports=require(9)
-},{"./version":30,"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/vtext.js":9}],34:[function(require,module,exports){
+},{"./version":31,"/home/ollie/work/pandoc-live/node_modules/vdom-virtualize/node_modules/vtree/vtext.js":9}],35:[function(require,module,exports){
 var nativeIsArray = Array.isArray
 var toString = Object.prototype.toString
 
@@ -1619,7 +1641,7 @@ function isArray(obj) {
     return toString.call(obj) === "[object Array]"
 }
 
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 var toString = Object.prototype.toString
 
 module.exports = isString
@@ -1628,9 +1650,9 @@ function isString(obj) {
     return toString.call(obj) === "[object String]"
 }
 
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 var patch = require("vdom/patch")
 
 module.exports = patch
 
-},{"vdom/patch":21}]},{},[1]);
+},{"vdom/patch":22}]},{},[1]);
