@@ -19,7 +19,7 @@ window.onload = function () {
             h('div', {
                 style: {
                     visibility: "hidden",
-                    position: "absolute"
+                    position: "absolute",
                     top: "0"
                 }
             })

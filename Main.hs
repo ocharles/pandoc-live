@@ -46,9 +46,10 @@ main = do
   Async.link watcher
 
   indexFile <- getDataFileName "index.html"
+  bundleFile <- getDataFileName "bundle.js"
   Snap.quickHttpServe $
     Snap.route [("/events", sinkEvents lastDocument events),
-                ("/bundle.js", Snap.serveFile "bundle.js"),
+                ("/bundle.js", Snap.serveFile bundleFile),
                 ("/", Snap.serveFile indexFile)]
 
 sinkEvents :: STM.TVar Pandoc.Pandoc -> STM.TChan Pandoc.Pandoc -> Snap.Snap ()
